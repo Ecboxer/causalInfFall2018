@@ -1,0 +1,6 @@
+--2018-11-18 17:01:18--  https://piazza-resources.s3.amazonaws.com/jljq08gds742zn/jogmlbn93lo3n7/weighted_regression.ipynb?X-Amz-Algorithm=AWS4-HMAC-SHA256
+Resolving piazza-resources.s3.amazonaws.com (piazza-resources.s3.amazonaws.com)... 52.216.165.163
+Connecting to piazza-resources.s3.amazonaws.com (piazza-resources.s3.amazonaws.com)|52.216.165.163|:443... connected.
+HTTP request sent, awaiting response... 400 Bad Request
+2018-11-18 17:01:18 ERROR 400: Bad Request.
+

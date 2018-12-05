@@ -1,0 +1,271 @@
+---
+title: "propensity score matching_selection"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Propensity Score Matching
+
+So far, we've been implementing score matching ourselves. We haven't been using standard errors, and we haven't played extensively with our approach to matching. Now, we'll do both!
+
+First, we need a data set. We'll generate one similarly as we have before, as in the weighted OLS example:
+
+```{r}
+N = 5000
+a = rnorm(N)
+b = rnorm(N)
+
+y1 = 102 + 6*a + 4*b + rnorm(N)
+y0 = 100 + 3*a + 2*b + rnorm(N)
+
+u = (a+b)/2
+p_d_given_a_b = plogis(u)
+d = rbinom(rep(1,N), 1, p_d_given_a_b)
+
+y = d * y1 + (1-d) * y0
+  
+df = data.frame(d, y, a, b, u)
+head(df)
+```
+
+again, we can take a naive regression estimate to see the bias:
+
+```{r}
+model = lm(y ~ d)
+summary(model)
+```
+
+As before, the true effect is actually $\delta = 2.0$, instead of around $5.3$. You could see for yourself by plugging in a constant probability of assignment $p=0.5$, and calculating this naive regression estimate again (simulating randomized control).
+
+
+## The matching estimator
+
+Now, let's do some propensity score matching. We'll use the R package, MatchIt.
+
+```{r}
+install.packages('MatchIt')
+```
+
+```{r}
+library('MatchIt')
+```
+
+Now, it's easy to just perform the matching!
+
+```{r}
+result <- matchit(d ~ a + b, df, method = "nearest", distance = "mahalanobis", replace=TRUE)
+```
+
+We want to examine the balance to make sure we've done a good job of matching. The "Percent Balance Improvement" table at the bottom is a good summary, where "Mean Diff." shows the average difference in the Z between the matched control and treated units.
+
+```{r}
+summary(result)
+```
+
+So we've done a good job balancing on the covariates, a and b!  Now, let's calculate the ATT:
+
+```{r}
+matched_data = match.data(result)
+matched_data$weighted_y = matched_data$weights * matched_data$y
+aggregate(matched_data[,c(1,2,8)], list(matched_data$d), mean)
+#matched_data
+```
+so we get around ATT = 3.1 by taking the difference of the weighted y averages We can calculate the ATC by inverting the assignment (d=1 -> d=0, and vice versa), to trick MatchIt into matching to the control units. Then, we just have to flip d again before running the model. First, let's compare to a weighted regression to get the same result!
+```{r}
+model = lm(y ~ d, data=matched_data, weights=matched_data$weights)
+summary(model)
+```
+
+```{r}
+df$d <- (df$d + 1) %% 2  # flip the assignment
+result <- matchit(d ~ a + b, df, method = "nearest", distance = "logit", replace=TRUE)
+summary(result)
+matched_data = match.data(result)
+matched_data$d <- (matched_data$d + 1) %% 2  # flip the assignment again before running the model
+model = lm(y ~ d + a + b, data=matched_data, weights=matched_data$weights)
+summary(model)
+```
+So we get an ATC of around 0.9.
+
+Finally, we can check our ATT and ATC against the true values by randomizing d, while keeping the old values of d (non-randomized) so we can still select people who "would have been treated (or not)". We're only able to do this because we're generating the data -- in general, you can't check your results without doing an experiment!! We'll use a large number of samples, so we don't have to worry much about random error.
+
+```{r}
+N = 10000
+a = rnorm(N)
+b = rnorm(N)
+
+y1 = 102 + 6*a + 4*b + rnorm(N)
+y0 = 100 + 3*a + 2*b + rnorm(N)
+
+u = (a+b)/2
+p_d_given_a_b = plogis(u)
+d_old = rbinom(rep(1,N), 1, p_d_given_a_b)
+d <- d_old
+d = rbinom(rep(1,N), 1, 0.5)
+
+y = d * y1 + (1-d) * y0
+  
+df = data.frame(d, y, a, b, u, d_old, y0, y1)
+
+att_model <- lm(y ~ d, data=df[which(df$d_old == 1),])
+atc_model <- lm(y ~ d, data=df[which(df$d_old == 0),])
+summary(att_model)
+summary(atc_model)
+```
+So we see our results are close to the true estimates! 
+
+For your assignment, you should
+(1) Try at least 2 other matching methods with different parameter settings to find which gives the best balance on the covariates. Report your results from each method, say which is the best (in this case), and discuss why.
+(2) Draw several (e.g. at least 100) samples from the data generating process, and calculate the ATT and ATC each time, as well as their standard errors from the regression estimate. Plot histograms of the ATT and ATC estimates. Compare the standard deviation of the estimates with the average standard error. How well does the standard error reflect the true sampling error? Is there bias?
+(3) Repeat (2) with a doubly robust estimate, by including a and b in the regression specification for the ATC and ATT. Does the standard error improve? Does the bias improve?
+
+
+
+
+(1) 
+```{r}
+install.packages('optmatch')
+```
+
+
+```{r}
+N = 1000
+a = rnorm(N)
+b = rnorm(N)
+
+y1 = 102 + 6*a + 4*b + rnorm(N)
+y0 = 100 + 3*a + 2*b + rnorm(N)
+
+u = (a+b)/2
+p_d_given_a_b = plogis(u)
+d = rbinom(rep(1,N), 1, p_d_given_a_b)
+
+y = d * y1 + (1-d) * y0
+  
+df = data.frame(d, y, a, b, u)
+head(df)
+result <- matchit(d ~ a + b, df, method = "genetic", distance = "logit", replace=TRUE)
+summary(result)
+
+```
+
+```{r}
+result <- matchit(d ~ a + b, df, method = "nearest", distance = "logit", replace=TRUE, caliper=0.01)
+summary(result)
+help(matchit)
+```
+
+```{r}
+result <- matchit(d ~ a + b, df, method = "nearest", distance = "logit", replace=TRUE)
+summary(result)
+help(matchit)
+```
+
+
+I used a genetic matching approach, a caliper approach, and the regular nearest neighbors approach. The caliper approach performed poorly, since the mean difference between the treated and control is relataively large (the treated is double the control for both a and b!). The regular nearest neighbor approach is pretty good, getting rid of almost all of the mean difference. The remaining difference is less than a percent of the original difference in a, and a few percent of the original difference in b. The genetic approach performed the best overall, with the smallest mean differences in both a and b.
+
+```{r}
+atc_estimates<-c()
+att_estimates<-c()
+atc_errs<-c()
+att_errs<-c()
+for(i in 1:500){
+  N = 1000
+  a = rnorm(N)
+  b = rnorm(N)
+  
+  y1 = 102 + 6*a + 4*b + rnorm(N)
+  y0 = 100 + 3*a + 2*b + rnorm(N)
+  
+  u = (a+b)/2
+  p_d_given_a_b = plogis(u)
+  d = rbinom(rep(1,N), 1, p_d_given_a_b)
+  
+  y = d * y1 + (1-d) * y0
+    
+  df = data.frame(d, y, a, b, u)
+  
+  result <- matchit(d ~ a + b, df, method = "nearest", distance = "logit", replace=TRUE)
+  # att model
+  matched_data = match.data(result)
+  att_model = lm(y ~ d, data=matched_data, weights=matched_data$weights)
+  # atc model
+  df$d <- (df$d + 1) %% 2  # flip the assignment
+  result <- matchit(d ~ a + b, df, method = "nearest", distance = "logit", replace=TRUE)
+  matched_data = match.data(result)
+  matched_data$d <- (matched_data$d + 1) %% 2  # flip the assignment again before running the model
+  atc_model = lm(y ~ d, data=matched_data, weights=matched_data$weights)
+  atc_estimates[[i]]<-atc_model$coefficients[[2]]
+  att_estimates[[i]]<-att_model$coefficients[[2]]
+  att_errs[[i]]<-coef(summary(att_model))[,2][[2]]
+  atc_errs[[i]]<-coef(summary(atc_model))[,2][[2]]
+}
+```
+```{r}
+hist(att_estimates)
+```
+```{r}
+hist(atc_estimates)
+```
+
+```{r}
+sqrt(var(atc_estimates))
+```
+```{r}
+mean(atc_errs)
+```
+
+```{r}
+sqrt(var(att_estimates))
+```
+
+```{r}
+mean(att_errs)
+```
+So the standard error from the regression over-estimates the standard deviation in the effect estimate. How will this compare to the sampling error in the mean difference?
+```{r}
+atc_actuals<-c()
+att_actuals<-c()
+for (i in 1:1000){
+  N = 1000
+  a = rnorm(N)
+  b = rnorm(N)
+  
+  y1 = 102 + 6*a + 4*b + rnorm(N)
+  y0 = 100 + 3*a + 2*b + rnorm(N)
+  
+  u = (a+b)/2
+  p_d_given_a_b = plogis(u)
+  d_old = rbinom(rep(1,N), 1, p_d_given_a_b)
+  d <- d_old
+  d = rbinom(rep(1,N), 1, 0.5)
+  
+  y = d * y1 + (1-d) * y0
+    
+  df = data.frame(d, y, a, b, u, d_old, y0, y1)
+  treated = df[which(df$d_old == 1),]
+  att<-mean(treated[which(treated$d == 1),]$y) - mean(treated[which(treated$d == 0),]$y)
+  control = df[which(df$d_old == 0),]
+  atc<-mean(control[which(control$d == 1),]$y) - mean(control[which(control$d == 0),]$y)
+  atc_actuals[[i]]<-atc
+  att_actuals[[i]]<-att
+}
+```
+
+```{r}
+hist(att_actuals)
+```
+```{r}
+hist(atc_actuals)
+```
+
+```{r}
+sqrt(var(atc_actuals))
+```
+```{r}
+sqrt(var(att_actuals))
+```
+
