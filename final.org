@@ -1,0 +1,60 @@
+* format
+** Optional conditioning, ie BDC
+** 1 Which estimation method is appropriate, draw a graph for a system
+** 1 Propensity score matching and WLS
+** 2 Gen data and implement methods
+** 3 Trickier implementations, choose one
+
+* Instrum Var
+** If correlation is small, can have large bias
+   if instr is not strong enough
+   because of denominator
+   intuitive, instrument must have effect on causal state, strong -> determines causal state
+   ie random state
+** exc restr
+   No causal rel between z and y, if delete z -> d no way for z to influence y
+** estimators
+   both measure late, exclude never and always-takers
+   requires monotonicity, induces to either control or tr, if it can switch 0 -> 1 can't go rev
+*** wald
+*** tsls
+
+* FDC
+  2x bdc z|dox y|doz
+  if x' cts, turns into integral, use binary/discrete if possible
+** assumptions
+*** intercepts all effect of x on y
+*** no confounding btw x and z, pushes confounding ass from xy to xz, easier?
+*** bdc 2x
+** fda
+   implement with disc !!!
+   needs stoch in z !!!
+*** optional separate tes, ie military svc
+    use one var as a z do as nml
+    use the other and do as normal
+    both for full fdc
+
+* Time series
+** sing series
+   can extraploate y0, wo confounding
+   MandW provide args for strengthening no conf assumptions
+** several units
+   compare d0, d1
+   optional hard prop score matching
+   optional hard include other regression vars
+** ANCOVA
+   change score for conditional est
+   bdc on time series
+   by regression inclusion
+*** do change score simulation including time dependent confounding var
+
+* improv
+  note: there is an effect...
+  for single time series
+** application repeated, assuming stat like applying over several units, but across time slices
+** shifts => how well can we determine the time series before treatment
+
+* Sec 9-11
+  instrum
+  mechanisms
+  time series
