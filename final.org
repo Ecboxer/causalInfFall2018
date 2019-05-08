@@ -29,20 +29,20 @@
 ** fda
    implement with disc !!!
    needs stoch in z !!!
-*** optional separate tes, ie military svc
+*** optional separate tests, ie military svc
     use one var as a z do as nml
     use the other and do as normal
     both for full fdc
 
 * Time series
 ** sing series
-   can extraploate y0, wo confounding
-   MandW provide args for strengthening no conf assumptions
+   can extraploate y0, w/o confounding
+   MandW provide args for strengthening no confounding assumptions (see improvements)
 ** several units
    compare d0, d1
    optional hard prop score matching
    optional hard include other regression vars
-** ANCOVA
+** ANCOVA or Change Score
    change score for conditional est
    bdc on time series
    by regression inclusion
